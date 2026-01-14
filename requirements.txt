@@ -21,3 +21,4 @@ mutagen
 yt-dlp
 speedtest-cli
 gunicorn
+flask
