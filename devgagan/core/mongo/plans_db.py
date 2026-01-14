@@ -28,21 +28,14 @@ async def premium_users():
 
 async def check_and_remove_expired_users():
     current_time = datetime.datetime.utcnow()
-    expired_users = []
-    
-    for user_id, data in premium_data.items():
+
+    async for data in db.find():
         expire_date = data.get("expire_date")
         if expire_date and expire_date < current_time:
-            expired_users.append(user_id)
-    
-    for user_id in expired_users:
-        await remove_premium(user_id)
-        for data in db.find():
-    user_id = data.get("user_id")
-    db.delete_one({"user_id": user_id})
-    print(f"Removed user {user_id} due to expired plan.")
-        id_list.append(data["_id"])
-    return id_list
+            user_id = data.get("user_id")
+            await remove_premium(user_id)
+            await db.delete_one({"user_id": user_id})
+            print(f"Removed user {user_id} due to expired plan.")
  
 async def check_and_remove_expired_users():
     current_time = datetime.datetime.utcnow()
