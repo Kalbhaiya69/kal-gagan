@@ -37,7 +37,10 @@ async def check_and_remove_expired_users():
     
     for user_id in expired_users:
         await remove_premium(user_id)
-        print(f"Removed user {user_id} due to expired plan.") for data in db.find():
+        for data in db.find():
+    user_id = data.get("user_id")
+    db.delete_one({"user_id": user_id})
+    print(f"Removed user {user_id} due to expired plan.")
         id_list.append(data["_id"])
     return id_list
  
