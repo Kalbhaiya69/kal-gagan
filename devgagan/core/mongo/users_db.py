@@ -1,62 +1,36 @@
 # ---------------------------------------------------
 # File Name: users_db.py
-# Description: In-memory user management
-# Author: Gagan
-# GitHub: https://github.com/devgaganin/
-# Created: 2025-01-11
-# Version: 2.0.5
-# License: MIT License
+# Description: MongoDB user management
 # ---------------------------------------------------
 
-# In-memory storage for users
-users_set = set()
-
-async def get_users():
-    return list(users_set)
-
-async def get_user(user):
-    return user in users_set
-
-async def add_user(user):
-    users_set.add(user)
-
-async def del_user(user):
-    from motor.motor_asyncio import AsyncIOMotorClient as MongoCli
-
+from motor.motor_asyncio import AsyncIOMotorClient as MongoCli
+from devgagan.config import MONGO_DB
 
 mongo = MongoCli(MONGO_DB)
-db = mongo.users
-db = db.users_db
+db = mongo.users_db
 
 
 async def get_users():
-  user_list = []
-  async for user in db.users.find({"user": {"$gt": 0}}):
-    user_list.append(user['user'])
-  return user_list
+    user_list = []
+    async for user in db.users.find({"user": {"$gt": 0}}):
+        user_list.append(user["user"])
+    return user_list
 
 
 async def get_user(user):
-  users = await get_users()
-  if user in users:
-    return True
-  else:
-    return False
+    users = await get_users()
+    return user in users
+
 
 async def add_user(user):
-  users = await get_users()
-  if user in users:
-    return
-  else:
+    users = await get_users()
+    if user in users:
+        return
     await db.users.insert_one({"user": user})
 
 
 async def del_user(user):
-  users = await get_users()
-  if not user in users:
-    return
-  else:
+    users = await get_users()
+    if user not in users:
+        return
     await db.users.delete_one({"user": user})
-    
-
-
