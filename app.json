@@ -1,0 +1,86 @@
+{
+  "name": "Save Restricted Content Bot master-v1 branch",
+  "description": "Save Restricted Content Bot by 🦅BADDY🦅",
+  "logo": "https://graph.org/file/3eddaf2b77f5e2352640b-1cf1914d750ca43925.jpg",
+  "repository": "https://github.com/devgaganin/save_restricted-content-telegram-bot-repo",
+  "keywords": ["python3", "telegram", "bot", "pyrogram"],
+  "success_url": "https://devgagan.in",
+  "env": {
+    "API_ID": {
+      "description": "Get this value from https://my.telegram.org",
+      "value": "24715704",
+      "required": true
+    },
+    "API_HASH": {
+      "description": "Get this value from https://my.telegram.org",
+      "value": "e5c345185c6e71c5b90eb1a4c63291ef",
+      "required": true
+    },
+    "BOT_TOKEN": {
+      "description": "A Bot's token from Botfather",
+      "required": true
+    },
+    "MONGO_DB": {
+      "description": "Get this value from https://my.telegram.org",
+      "value": "",
+      "required": true
+    },
+    "OWNER_ID": {
+      "description": "Your Telegram user ID (numeric)",
+      "value": "7310262552",
+      "required": true
+    },
+    "FREEMIUM_LIMIT": {
+      "description": "File size limit (in MB) for free users",
+      "value": "20",
+      "required": true
+    },
+    "PREMIUM_LIMIT": {
+      "description": "File size limit (in MB) for premium users",
+      "value": "5000",
+      "required": true
+    },
+    "STRING": {
+      "description": "Premium session string (optional)",
+      "required": false
+    },
+    "DEFAULT_SESSION": {
+      "description": "Session string to allow invite-based use (optional)",
+      "required": false
+    },
+    "WEBSITE_URL": {
+      "description": "Shortener website domain (e.g., upshrink.com)",
+      "value": "link4url.com",
+      "required": false
+    },
+    "AD_API": {
+      "description": "API key for Ad integration (optional)",
+      "value": "87fd79e2bdf79a79adc760a150c21223ab9862cc",
+      "required": false
+    },
+    "SUDO_USERS": {
+      "description": "Other admin Telegram user IDs (space-separated)",
+      "value": "7310262552",
+      "required": false
+    },
+    "CHANNEL_ID": {
+      "description": "Channel ID where bot will post (-100 prefix required)",
+      "value": "-1002769696899",
+      "required": true
+    },
+    "LOG_GROUP": {
+      "description": "Log Channel/Group ID (-100 prefix required)",
+      "value": "-1004875215831",
+      "required": true
+    }
+  },
+  "buildpacks": [
+    { "url": "heroku/python" }
+  ],
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "Basic"
+    }
+  }
+}
