@@ -21,7 +21,7 @@ async def add_user(user):
     users_set.add(user)
 
 async def del_user(user):
-    users_set.discard(user)port AsyncIOMotorClient as MongoCli
+    from motor.motor_asyncio import AsyncIOMotorClient as MongoCli
 
 
 mongo = MongoCli(MONGO_DB)
