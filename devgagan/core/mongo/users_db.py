@@ -1,5 +1,5 @@
 from motor.motor_asyncio import AsyncIOMotorClient
-from devgagan.config import MONGO_DB
+from config import MONGO_DB
 
 client = AsyncIOMotorClient(MONGO_DB)
 db = client["devgagan"]["users"]
