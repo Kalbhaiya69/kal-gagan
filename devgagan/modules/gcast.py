@@ -1,13 +1,8 @@
-# ---------------------------------------------------
-# File Name: gcast.py
-# Description: Broadcast module
-# ---------------------------------------------------
-
 import asyncio
 import traceback
 from pyrogram import filters
 from pyrogram.errors import FloodWait, InputUserDeactivated, UserIsBlocked, PeerIdInvalid
-from devgagan.config import OWNER_ID
+from config import OWNER_ID
 from devgagan import app
 from devgagan.core.mongo.users_db import get_users
 
@@ -52,7 +47,7 @@ async def broadcast(_, message):
             failed_users += 1
     
     await exmsg.edit_text(
-        f"**Successfully Broadcasting ✅**\n\n"
+        f"**Successfully Broadcasting**\n\n"
         f"**Sent to:** `{done_users}` users\n"
         f"**Failed:** `{failed_users}` users"
     )
@@ -82,7 +77,7 @@ async def announced(_, message):
             failed_users += 1
     
     await exmsg.edit_text(
-        f"**Successfully Broadcasting ✅**\n\n"
+        f"**Successfully Broadcasting**\n\n"
         f"**Sent to:** `{done_users}` users\n"
         f"**Failed:** `{failed_users}` users"
     )
