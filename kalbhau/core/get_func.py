@@ -16,6 +16,7 @@
 import asyncio
 import time
 import gc
+import logging
 import os
 import re
 from typing import Callable
@@ -45,6 +46,9 @@ COLLECTION_NAME = "super_user"
 
 VIDEO_EXTENSIONS = ['mp4', 'mov', 'avi', 'mkv', 'flv', 'wmv', 'webm', 'mpg', 'mpeg', '3gp', 'ts', 'm4v', 'f4v', 'vob']
 DOCUMENT_EXTENSIONS = ['pdf', 'docs']
+
+logger = logging.getLogger(__name__)
+PART_SIZE_CONST = 1.9 * 1024 * 1024 * 1024  # 1.9GB
 
 mongo_app = pymongo.MongoClient(MONGODB_CONNECTION_STRING)
 db = mongo_app[DB_NAME]
@@ -80,7 +84,7 @@ async def format_caption_to_html(caption: str) -> str:
 async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
     try:
         upload_method = await fetch_upload_method(sender)  # Fetch the upload method (Pyrogram or Telethon)
-        metadata = video_metadata(file)
+        metadata = await asyncio.to_thread(video_metadata, file)
         width, height, duration = metadata['width'], metadata['height'], metadata['duration']
         try:
             thumb_path = await screenshot(file, duration, sender)
@@ -143,7 +147,7 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
                 gf, file,
                 reply=progress_message,
                 name=None,
-                progress_bar_function=lambda done, total: progress_callback(done, total, sender),
+                progress_bar_function=lambda done, total: general_progress_callback(done, total, sender, "Telethon Uploader"),
                 user_id=sender
             )
             await progress_message.delete()
@@ -175,10 +179,11 @@ async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
                 thumb=thumb_path
             )
 
-        os.remove(file)
+        if os.path.exists(file):
+            os.remove(file)
     except Exception as e:
         await app.send_message(LOG_GROUP, f"**Upload Failed:** {str(e)}")
-        print(f"Error during media upload: {e}")
+        logger.error(f"Error during media upload: {e}", exc_info=True)
 
     finally:
         if thumb_path and os.path.exists(thumb_path):
@@ -328,13 +333,19 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
         await app.edit_message_text(sender, edit_id, "Have you joined the channel?")
     except Exception as e:
         # await app.edit_message_text(sender, edit_id, f"Failed to save: `{msg_link}`\n\nError: {str(e)}")
-        print(f"Error: {e}")
+        logger.error(f"Error in get_msg: {e}", exc_info=True)
     finally:
         # Clean up
         if file and os.path.exists(file):
-            os.remove(file)
+            try:
+                os.remove(file)
+            except OSError:
+                pass
         if edit:
-            await edit.delete(2)
+            try:
+                await edit.delete(2)
+            except Exception:
+                pass
         
 async def clone_message(app, msg, target_chat_id, topic_id, edit_id, log_group):
     edit = await app.edit_message_text(target_chat_id, edit_id, "Cloning...")
@@ -842,18 +853,19 @@ async def lock_command_handler(event):
 async def handle_large_file(file, sender, edit, caption):
     if pro is None:
         await edit.edit('**__ ❌ 4GB trigger not found__**')
-        os.remove(file)
+        if os.path.exists(file):
+            os.remove(file)
         gc.collect()
         return
     
     dm = None
     
-    print("4GB connector found.")
+    logger.info("4GB connector found.")
     await edit.edit('**__ ✅ 4GB trigger connected...__**\n\n')
     
     target_chat_id = user_chat_ids.get(sender, sender)
     file_extension = str(file).split('.')[-1].lower()
-    metadata = video_metadata(file)
+    metadata = await asyncio.to_thread(video_metadata, file)
     duration = metadata['duration']
     width = metadata['width']
     height = metadata['height']
@@ -918,11 +930,12 @@ async def handle_large_file(file, sender, edit, caption):
             )
             
     except Exception as e:
-        print(f"Error while sending file: {e}")
+        logger.error(f"Error while sending file: {e}", exc_info=True)
 
     finally:
         await edit.delete()
-        os.remove(file)
+        if os.path.exists(file):
+            os.remove(file)
         gc.collect()
         return
 
@@ -979,7 +992,7 @@ async def is_file_size_exceeding(file_path, size_limit):
 
 user_progress = {}
 
-def progress_callback(done, total, user_id):
+def general_progress_callback(done, total, user_id, action_name="Uploader"):
     # Check if this user already has progress tracking
     if user_id not in user_progress:
         user_progress[user_id] = {
@@ -991,7 +1004,10 @@ def progress_callback(done, total, user_id):
     user_data = user_progress[user_id]
     
     # Calculate the percentage of progress
-    percent = (done / total) * 100
+    if total > 0:
+        percent = (done / total) * 100
+    else:
+        percent = 0
     
     # Format the progress bar
     completed_blocks = int(percent // 10)
@@ -1024,70 +1040,7 @@ def progress_callback(done, total, user_id):
     # Format the final output as needed
     final = (
         f"╭──────────────────╮\n"
-        f"│     **__Rank Raiders ⚡ Uploader__**       \n"
-        f"├──────────\n"
-        f"│ {progress_bar}\n\n"
-        f"│ **__Progress:__** {percent:.2f}%\n"
-        f"│ **__Done:__** {done_mb:.2f} MB / {total_mb:.2f} MB\n"
-        f"│ **__Speed:__** {speed_mbps:.2f} Mbps\n"
-        f"│ **__ETA:__** {remaining_time_min:.2f} min\n"
-        f"╰──────────────────╯\n\n"
-        f"**__Powered by @kalbhau01__**"
-    )
-    
-    # Update tracking variables for the user
-    user_data['previous_done'] = done
-    user_data['previous_time'] = time.time()
-    
-    return final
-
-
-def dl_progress_callback(done, total, user_id):
-    # Check if this user already has progress tracking
-    if user_id not in user_progress:
-        user_progress[user_id] = {
-            'previous_done': 0,
-            'previous_time': time.time()
-        }
-    
-    # Retrieve the user's tracking data
-    user_data = user_progress[user_id]
-    
-    # Calculate the percentage of progress
-    percent = (done / total) * 100
-    
-    # Format the progress bar
-    completed_blocks = int(percent // 10)
-    remaining_blocks = 10 - completed_blocks
-    progress_bar = "♦" * completed_blocks + "◇" * remaining_blocks
-    
-    # Convert done and total to MB for easier reading
-    done_mb = done / (1024 * 1024)  # Convert bytes to MB
-    total_mb = total / (1024 * 1024)
-    
-    # Calculate the upload speed (in bytes per second)
-    speed = done - user_data['previous_done']
-    elapsed_time = time.time() - user_data['previous_time']
-    
-    if elapsed_time > 0:
-        speed_bps = speed / elapsed_time  # Speed in bytes per second
-        speed_mbps = (speed_bps * 8) / (1024 * 1024)  # Speed in Mbps
-    else:
-        speed_mbps = 0
-    
-    # Estimated time remaining (in seconds)
-    if speed_bps > 0:
-        remaining_time = (total - done) / speed_bps
-    else:
-        remaining_time = 0
-    
-    # Convert remaining time to minutes
-    remaining_time_min = remaining_time / 60
-    
-    # Format the final output as needed
-    final = (
-        f"╭──────────────────╮\n"
-        f"│     **__Rank Raiders ⚡ Downloader__**       \n"
+        f"│     **__Rank Raiders ⚡ {action_name}__**       \n"
         f"├──────────\n"
         f"│ {progress_bar}\n\n"
         f"│ **__Progress:__** {percent:.2f}%\n"
@@ -1113,22 +1066,32 @@ async def split_and_upload_file(app, sender, target_chat_id, file_path, caption,
 
     file_size = os.path.getsize(file_path)
     start = await app.send_message(sender, f"ℹ️ File size: {file_size / (1024 * 1024):.2f} MB")
-    PART_SIZE =  1.9 * 1024 * 1024 * 1024
+
+    # Use the constant defined
+    PART_SIZE = PART_SIZE_CONST
 
     part_number = 0
     async with aiofiles.open(file_path, mode="rb") as f:
         while True:
-            chunk = await f.read(PART_SIZE)
-            if not chunk:
-                break
-
             # Create part filename
             base_name, file_ext = os.path.splitext(file_path)
             part_file = f"{base_name}.part{str(part_number).zfill(3)}{file_ext}"
 
-            # Write part to file
+            # Stream chunks to part file to avoid loading 2GB into RAM
+            written_size = 0
             async with aiofiles.open(part_file, mode="wb") as part_f:
-                await part_f.write(chunk)
+                while written_size < PART_SIZE:
+                    chunk_size = min(10 * 1024 * 1024, PART_SIZE - written_size) # 10MB chunks
+                    chunk = await f.read(chunk_size)
+                    if not chunk:
+                        break
+                    await part_f.write(chunk)
+                    written_size += len(chunk)
+
+            if written_size == 0:
+                if os.path.exists(part_file):
+                    os.remove(part_file)
+                break
 
             # Uploading part
             edit = await app.send_message(target_chat_id, f"⬆️ Uploading part {part_number + 1}...")
@@ -1138,9 +1101,11 @@ async def split_and_upload_file(app, sender, target_chat_id, file_path, caption,
                 progress_args=("╭─────────────────────╮\n│      **__Pyro Uploader__**\n├─────────────────────", edit, time.time())
             )
             await edit.delete()
-            os.remove(part_file)  # Cleanup after upload
+            if os.path.exists(part_file):
+                os.remove(part_file)  # Cleanup after upload
 
             part_number += 1
 
     await start.delete()
-    os.remove(file_path)
+    if os.path.exists(file_path):
+        os.remove(file_path)

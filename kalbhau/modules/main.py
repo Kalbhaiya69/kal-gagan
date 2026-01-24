@@ -17,6 +17,7 @@ import time
 import random
 import string
 import asyncio
+import logging
 from pyrogram import filters, Client
 from kalbhau import app, userrbot
 from config import API_ID, API_HASH, FREEMIUM_LIMIT, PREMIUM_LIMIT, OWNER_ID, DEFAULT_SESSION
@@ -32,6 +33,7 @@ async def generate_random_name(length=8):
     return ''.join(random.choices(string.ascii_lowercase, k=length))
 
 
+logger = logging.getLogger(__name__)
 
 users_loop = {}
 interval_set = {}
@@ -40,13 +42,14 @@ batch_mode = {}
 async def process_and_upload_link(userbot, user_id, msg_id, link, retry_count, message):
     try:
         await get_msg(userbot, user_id, msg_id, link, retry_count, message)
+        await asyncio.sleep(15)
+    except Exception as e:
+        logger.error(f"Error processing link {link}: {e}", exc_info=True)
+    finally:
         try:
             await app.delete_messages(user_id, msg_id)
         except Exception:
             pass
-        await asyncio.sleep(15)
-    finally:
-        pass
 
 # Function to check if the user can proceed
 async def check_interval(user_id, freecheck):
