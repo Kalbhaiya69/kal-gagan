@@ -26,4 +26,4 @@ COPY . .
 EXPOSE 8000
 
 # Use JSON array syntax to avoid CMD warning
-CMD ["sh", "-c", "flask run -h 0.0.0.0 -p 8000 & python3 -m devgagan"]
+CMD ["sh", "-c", "flask run -h 0.0.0.0 -p 8000 & python3 -m kalbhau"]
