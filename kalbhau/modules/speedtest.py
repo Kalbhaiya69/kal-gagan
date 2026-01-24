@@ -15,6 +15,7 @@
 from time import time
 from speedtest import Speedtest
 import math
+import asyncio
 from telethon import events
 from kalbhau import botStartTime
 from kalbhau import sex as gagan
@@ -55,12 +56,17 @@ def get_readable_file_size(size_in_bytes) -> str:
 @gagan.on(events.NewMessage(incoming=True, pattern='/speedtest'))
 async def speedtest(event):
     speed = await event.reply("Running Speed Test. Wait about some secs.")  #edit telethon
-    test = Speedtest()
-    test.get_best_server()
-    test.download()
-    test.upload()
-    test.results.share()
-    result = test.results.dict()
+
+    def run_speedtest():
+        test = Speedtest()
+        test.get_best_server()
+        test.download()
+        test.upload()
+        test.results.share()
+        return test.results.dict()
+
+    result = await asyncio.to_thread(run_speedtest)
+
     path = (result['share'])
     currentTime = get_readable_time(time() - botStartTime)
     string_speed = f'''

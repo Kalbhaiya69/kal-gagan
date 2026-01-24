@@ -349,7 +349,10 @@ async def process_video(client, event, url, cookies_env_var, check_duration_and_
          
         await asyncio.to_thread(download_video, url, ydl_opts)
         title = info_dict.get('title', 'Powered by ㅤ@kalbhau01')
-        k = video_metadata(download_path)      
+
+        # Run blocking video_metadata in thread
+        k = await asyncio.to_thread(video_metadata, download_path)
+
         W = k['width']
         H = k['height']
         D = k['duration']
@@ -434,17 +437,24 @@ async def split_and_upload_file(app, sender, file_path, caption):
     part_number = 0
     async with aiofiles.open(file_path, mode="rb") as f:
         while True:
-            chunk = await f.read(PART_SIZE)
-            if not chunk:
-                break
-
             # Create part filename
             base_name, file_ext = os.path.splitext(file_path)
             part_file = f"{base_name}.part{str(part_number).zfill(3)}{file_ext}"
 
-            # Write part to file
+            # Stream chunks to part file to avoid loading 2GB into RAM
+            written_size = 0
             async with aiofiles.open(part_file, mode="wb") as part_f:
-                await part_f.write(chunk)
+                while written_size < PART_SIZE:
+                    chunk_size = min(10 * 1024 * 1024, PART_SIZE - written_size) # 10MB chunks
+                    chunk = await f.read(chunk_size)
+                    if not chunk:
+                        break
+                    await part_f.write(chunk)
+                    written_size += len(chunk)
+
+            if written_size == 0:
+                os.remove(part_file)
+                break
 
             # Uploading part
             edit = await app.send_message(sender, f"⬆️ Uploading part {part_number + 1}...")
