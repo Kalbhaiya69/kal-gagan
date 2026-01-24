@@ -1,10 +1,10 @@
 {
   "name": "Save Restricted Content Bot master-v1 branch",
-  "description": "Save Restricted Content Bot by 🦅BADDY🦅",
+  "description": "Save Restricted Content Bot by 🦅kalbhau01🦅",
   "logo": "https://graph.org/file/3eddaf2b77f5e2352640b-1cf1914d750ca43925.jpg",
-  "repository": "https://github.com/devgaganin/save_restricted-content-telegram-bot-repo",
+  "repository": "https://github.com/kalbhau_bot/save_restricted-content-telegram-bot-repo",
   "keywords": ["python3", "telegram", "bot", "pyrogram"],
-  "success_url": "https://devgagan.in",
+  "success_url": "https://kalbhau01.com",
   "env": {
     "API_ID": {
       "description": "Get this value from https://my.telegram.org",
