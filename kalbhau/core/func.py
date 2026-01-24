@@ -13,15 +13,21 @@
 # ---------------------------------------------------
 
 import math
-import time , re
+import time
+import re
+import os
+import asyncio
+import logging
+import cv2
+from datetime import datetime as dt
 from pyrogram import enums
 from config import CHANNEL_ID, OWNER_ID 
 from kalbhau.core.mongo.plans_db import premium_users
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-import cv2
 from pyrogram.errors import FloodWait, InviteHashInvalid, InviteHashExpired, UserAlreadyParticipant, UserNotParticipant
-from datetime import datetime as dt
-import asyncio, subprocess, re, os, time
+
+logger = logging.getLogger(__name__)
+
 async def chk_user(message, user_id):
     user = await premium_users()
     if user_id in user or user_id in OWNER_ID:
@@ -57,7 +63,7 @@ async def subscribe(app, message):
         return 1
     except Exception as e:
         # If any other error occurs (like bot not in chat), don't block the user
-        print(f"Error in subscribe: {e}")
+        logger.error(f"Error in subscribe: {e}", exc_info=True)
         return 0
     return 0
 async def get_seconds(time_string):
@@ -173,7 +179,7 @@ async def userbot_join(userbot, invite_link):
     except FloodWait:
         return "Too many requests, try again later."
     except Exception as e:
-        print(e)
+        logger.error(f"Error in userbot_join: {e}", exc_info=True)
         return "Could not join, try joining manually."
 def get_link(string):
     regex = r"(?i)\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'\".,<>?«»“”‘’]))"
@@ -186,6 +192,7 @@ def get_link(string):
             return False
     except Exception:
         return False
+
 def video_metadata(file):
     default_values = {'width': 1, 'height': 1, 'duration': 1}
     try:
@@ -209,7 +216,7 @@ def video_metadata(file):
         return {'width': width, 'height': height, 'duration': duration}
 
     except Exception as e:
-        print(f"Error in video_metadata: {e}")
+        logger.error(f"Error in video_metadata: {e}", exc_info=True)
         return default_values
 
 def hhmmss(seconds):
@@ -242,60 +249,3 @@ async def screenshot(video, duration, sender):
         return out
     else:
         None  
-last_update_time = time.time()
-async def progress_callback(current, total, progress_message):
-    percent = (current / total) * 100
-    global last_update_time
-    current_time = time.time()
-
-    if current_time - last_update_time >= 10 or percent % 10 == 0:
-        completed_blocks = int(percent // 10)
-        remaining_blocks = 10 - completed_blocks
-        progress_bar = "♦" * completed_blocks + "◇" * remaining_blocks
-        current_mb = current / (1024 * 1024)  
-        total_mb = total / (1024 * 1024)      
-        await progress_message.edit(
-    f"╭──────────────────╮\n"
-    f"│        **__Uploading...__**       \n"
-    f"├──────────\n"
-    f"│ {progress_bar}\n\n"
-    f"│ **__Progress:__** {percent:.2f}%\n"
-    f"│ **__Uploaded:__** {current_mb:.2f} MB / {total_mb:.2f} MB\n"
-    f"╰──────────────────╯\n\n"
-    f"**__Powered by ㅤ@kalbhau01__**"
-        )
-
-        last_update_time = current_time
-async def prog_bar(current, total, ud_type, message, start):
-
-    now = time.time()
-    diff = now - start
-    if round(diff % 10.00) == 0 or current == total:
-
-        percentage = current * 100 / total
-        speed = current / diff
-        elapsed_time = round(diff) * 1000
-        time_to_completion = round((total - current) / speed) * 1000
-        estimated_total_time = elapsed_time + time_to_completion
-
-        elapsed_time = TimeFormatter(milliseconds=elapsed_time)
-        estimated_total_time = TimeFormatter(milliseconds=estimated_total_time)
-
-        progress = "{0}{1}".format(
-            ''.join(["♦" for i in range(math.floor(percentage / 10))]),
-            ''.join(["◇" for i in range(10 - math.floor(percentage / 10))]))
-
-        tmp = progress + PROGRESS_BAR.format( 
-            round(percentage, 2),
-            humanbytes(current),
-            humanbytes(total),
-            humanbytes(speed),
-
-            estimated_total_time if estimated_total_time != '' else "0 s"
-        )
-        try:
-            await message.edit_text(
-                text="{}\n│ {}".format(ud_type, tmp),)             
-
-        except:
-            pass
