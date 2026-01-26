@@ -14,6 +14,7 @@
 # ---------------------------------------------------
 
 import asyncio
+import logging
 import time
 import gc
 import os
@@ -327,8 +328,8 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
     except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid):
         await app.edit_message_text(sender, edit_id, "Have you joined the channel?")
     except Exception as e:
-        # await app.edit_message_text(sender, edit_id, f"Failed to save: `{msg_link}`\n\nError: {str(e)}")
-        print(f"Error: {e}")
+        await app.edit_message_text(sender, edit_id, f"Failed to save: `{msg_link}`\n\nError: {str(e)}")
+        logging.error(f"Error: {e}", exc_info=True)
     finally:
         # Clean up
         if file and os.path.exists(file):
