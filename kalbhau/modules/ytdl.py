@@ -350,8 +350,8 @@ async def process_video(client, event, url, cookies_env_var, check_duration_and_
         await asyncio.to_thread(download_video, url, ydl_opts)
         title = info_dict.get('title', 'Powered by ㅤ@kalbhau01')
 
-        # Run blocking video_metadata in thread
-        k = await asyncio.to_thread(video_metadata, download_path)
+        # Run video_metadata
+        k = await video_metadata(download_path)
 
         W = k['width']
         H = k['height']

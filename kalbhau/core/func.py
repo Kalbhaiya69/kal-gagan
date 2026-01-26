@@ -186,7 +186,7 @@ def get_link(string):
             return False
     except Exception:
         return False
-def video_metadata(file):
+def video_metadata_sync(file):
     default_values = {'width': 1, 'height': 1, 'duration': 1}
     try:
         vcap = cv2.VideoCapture(file)
@@ -211,6 +211,10 @@ def video_metadata(file):
     except Exception as e:
         print(f"Error in video_metadata: {e}")
         return default_values
+
+
+async def video_metadata(file):
+    return await asyncio.to_thread(video_metadata_sync, file)
 
 def hhmmss(seconds):
     return time.strftime('%H:%M:%S',time.gmtime(seconds))
