@@ -242,13 +242,23 @@ async def screenshot(video, duration, sender):
         return out
     else:
         None  
-last_update_time = time.time()
+_progress_states = {}
+
 async def progress_callback(current, total, progress_message):
     percent = (current / total) * 100
-    global last_update_time
     current_time = time.time()
 
-    if current_time - last_update_time >= 10 or percent % 10 == 0:
+    msg_id = None
+    try:
+        last_update_time = progress_message._last_update_time
+    except AttributeError:
+        try:
+            msg_id = (progress_message.chat.id, progress_message.id)
+        except AttributeError:
+            msg_id = id(progress_message)
+        last_update_time = _progress_states.get(msg_id, 0)
+
+    if current_time - last_update_time >= 10 or percent % 10 == 0 or current == total:
         completed_blocks = int(percent // 10)
         remaining_blocks = 10 - completed_blocks
         progress_bar = "♦" * completed_blocks + "◇" * remaining_blocks
@@ -265,7 +275,20 @@ async def progress_callback(current, total, progress_message):
     f"**__Powered by ㅤ@kalbhau01__**"
         )
 
-        last_update_time = current_time
+        try:
+            progress_message._last_update_time = current_time
+            if msg_id and msg_id in _progress_states:
+                del _progress_states[msg_id]
+        except AttributeError:
+            if msg_id is None:
+                try:
+                    msg_id = (progress_message.chat.id, progress_message.id)
+                except AttributeError:
+                    msg_id = id(progress_message)
+            _progress_states[msg_id] = current_time
+
+            if current == total:
+                _progress_states.pop(msg_id, None)
 async def prog_bar(current, total, ud_type, message, start):
 
     now = time.time()
