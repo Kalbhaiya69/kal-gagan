@@ -13,6 +13,8 @@
 # ---------------------------------------------------
 
 import os, re, subprocess, sys, traceback
+import aiofiles
+import aiofiles.os
 from inspect import getfullargspec
 from io import StringIO
 from time import time
@@ -80,8 +82,8 @@ async def executor(client, message):
     final_output = f"<b>📕 ʀᴇsᴜʟᴛ :</b>\n<pre language='python'>{evaluation}</pre>"
     if len(final_output) > 4096:
         filename = "output.txt"
-        with open(filename, "w+", encoding="utf8") as out_file:
-            out_file.write(str(evaluation))
+        async with aiofiles.open(filename, "w+", encoding="utf8") as out_file:
+            await out_file.write(str(evaluation))
         t2 = time()
         keyboard = InlineKeyboardMarkup(
             [
@@ -100,7 +102,7 @@ async def executor(client, message):
             reply_markup=keyboard,
         )
         await message.delete()
-        os.remove(filename)
+        await aiofiles.os.remove(filename)
     else:
         t2 = time()
         keyboard = InlineKeyboardMarkup(
@@ -205,15 +207,15 @@ async def shellrunner(_, message):
         output = None
     if output:
         if len(output) > 4096:
-            with open("output.txt", "w+") as file:
-                file.write(output)
+            async with aiofiles.open("output.txt", "w+") as file:
+                await file.write(output)
             await _.send_document(
                 message.chat.id,
                 "output.txt",
                 reply_to_message_id=message.id,
                 caption="<code>Output</code>",
             )
-            return os.remove("output.txt")
+            return await aiofiles.os.remove("output.txt")
         await edit_or_reply(message, text=f"<b>OUTPUT :</b>\n<pre>{output}</pre>")
     else:
         await edit_or_reply(message, text="<b>OUTPUT :</b>\n<code>None</code>")
