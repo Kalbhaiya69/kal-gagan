@@ -653,8 +653,8 @@ async def callback_query_handler(event):
         sessions[user_id] = 'setreplacement'
 
     elif event.data == b'addsession':
-        await event.respond("Send Pyrogram V2 session")
-        sessions[user_id] = 'addsession' # (If you want to enable session based login just uncomment this and modify response message accordingly)
+        await event.respond("Please send your **Pyrogram V2** session string.\n\nIf you don't have one, you can use /login to log in via phone number directly.")
+        sessions[user_id] = 'addsession'
 
     elif event.data == b'delete':
         await event.respond("Send words seperated by space to delete them from caption/filename ...")
