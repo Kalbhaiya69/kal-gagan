@@ -35,6 +35,7 @@ from config import MONGO_DB as MONGODB_CONNECTION_STRING, LOG_GROUP, OWNER_ID, S
 from kalbhau.core.mongo import db as odb
 from telethon import TelegramClient, events, Button
 from devgagantools import fast_upload
+from kalbhau.core.watermark import apply_watermark
 
 def thumbnail(sender):
     return f'{sender}.jpg' if os.path.exists(f'{sender}.jpg') else None
@@ -284,6 +285,13 @@ async def get_msg(userbot, sender, edit_id, msg_link, i, message):
 
         # Rename file
         file = await rename_file(file, sender)
+
+        # Apply PDF Watermark
+        if file.lower().endswith('.pdf') and os.path.exists(f'watermark_{sender}.png'):
+            await edit.edit("**Applying PDF Watermark...**")
+            file = await apply_watermark(file, f'watermark_{sender}.png')
+            await edit.edit("**Uploading...**")
+
         if msg.audio:
             result = await app.send_audio(target_chat_id, file, caption=caption, reply_to_message_id=topic_id)
             await result.copy(LOG_GROUP)
@@ -469,6 +477,12 @@ async def copy_message_with_chat_id(app, userbot, sender, chat_id, message_id, e
             )
             file = await rename_file(file, sender)
 
+            # Apply PDF Watermark
+            if file.lower().endswith('.pdf') and os.path.exists(f'watermark_{sender}.png'):
+                await edit.edit("**Applying PDF Watermark...**")
+                file = await apply_watermark(file, f'watermark_{sender}.png')
+                await edit.edit("**Uploading...**")
+
             if msg.photo:
                 result = await app.send_photo(target_chat_id, file, caption=final_caption, reply_to_message_id=topic_id)
             elif msg.video or msg.document:
@@ -631,6 +645,7 @@ async def send_settings_message(chat_id, user_id):
 
 
 pending_photos = {}
+pending_pdf_watermarks = {}
 
 @gf.on(events.CallbackQuery)
 async def callback_query_handler(event):
@@ -673,8 +688,8 @@ async def callback_query_handler(event):
         await event.respond('Please send the photo you want to set as the thumbnail.')
     
     elif event.data == b'pdfwt':
-        await event.respond("This feature is not available yet in public repo...")
-        return
+        pending_pdf_watermarks[user_id] = True
+        await event.respond("Please send the image (Photo or Document) you want to set as PDF watermark. \n\n**Note:** For transparency, send as Document (PNG).")
 
     elif event.data == b'uploadmethod':
         # Retrieve the user's current upload method (default to Pyrogram)
@@ -755,6 +770,29 @@ async def save_thumbnail(event):
 
     # Remove user from pending photos dictionary in both cases
     pending_photos.pop(user_id, None)
+
+@gf.on(events.NewMessage(func=lambda e: e.sender_id in pending_pdf_watermarks))
+async def save_pdf_watermark(event):
+    user_id = event.sender_id
+
+    valid = False
+    if event.photo:
+        valid = True
+    elif event.document:
+        if event.document.mime_type.startswith('image/'):
+             valid = True
+
+    if valid:
+        temp_path = await event.download_media()
+        target = f'watermark_{user_id}.png'
+        if os.path.exists(target):
+            os.remove(target)
+        os.rename(temp_path, target)
+        await event.respond('PDF Watermark saved successfully!')
+    else:
+        await event.respond('Please send a valid image (Photo or Document)...')
+
+    pending_pdf_watermarks.pop(user_id, None)
 
 def save_user_upload_method(user_id, method):
     # Save or update the user's preferred upload method
