@@ -17,10 +17,13 @@ import pytz
 import datetime, time
 from kalbhau import app
 import asyncio
+import logging
 from config import OWNER_ID
 from kalbhau.core.func import get_seconds
 from kalbhau.core.mongo import plans_db
 from pyrogram import filters 
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -180,49 +183,83 @@ async def transfer_premium(client, message):
         await message.reply_text("⚠️ **Usage:** /transfer user_id\n\nReplace `user_id` with the new user's ID.")
 
 
+async def _process_user_premium(user, user_id, removed_users, not_removed_users):
+    """
+    Helper function to check and process a single user's premium status.
+    """
+    chk_time = await plans_db.check_premium(user_id)
+
+    if chk_time and chk_time.get("expire_date"):
+        expiry_date = chk_time["expire_date"]
+
+        if expiry_date <= datetime.datetime.now():
+            name = user.first_name
+            await plans_db.remove_premium(user_id)
+            await app.send_message(user_id, text=f"Hello {name}, your premium subscription has expired.")
+            logger.info(f"{name}, your premium subscription has expired.")
+            removed_users.append(f"{name} ({user_id})")
+        else:
+            name = user.first_name
+            current_time = datetime.datetime.now()
+            time_left = expiry_date - current_time
+
+            days = time_left.days
+            hours, remainder = divmod(time_left.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+
+            if days > 0:
+                remaining_time = f"{days} days, {hours} hours, {minutes} minutes, {seconds} seconds"
+            elif hours > 0:
+                remaining_time = f"{hours} hours, {minutes} minutes, {seconds} seconds"
+            elif minutes > 0:
+                remaining_time = f"{minutes} minutes, {seconds} seconds"
+            else:
+                remaining_time = f"{seconds} seconds"
+
+            logger.info(f"{name} : Remaining Time : {remaining_time}")
+            not_removed_users.append(f"{name} ({user_id})")
+
+
 async def premium_remover():
     all_users = await plans_db.premium_users()
     removed_users = []
     not_removed_users = []
 
-    for user_id in all_users:
+    batch_size = 200
+
+    for i in range(0, len(all_users), batch_size):
+        batch_ids = all_users[i:i + batch_size]
         try:
-            user = await app.get_users(user_id)
-            chk_time = await plans_db.check_premium(user_id)
+            users_list = await app.get_users(batch_ids)
+            # Create a map for easy access; handle case where get_users returns a single object if batch is 1
+            if not isinstance(users_list, list):
+                users_list = [users_list]
 
-            if chk_time and chk_time.get("expire_date"):
-                expiry_date = chk_time["expire_date"]
+            users_map = {user.id: user for user in users_list if user}
 
-                if expiry_date <= datetime.datetime.now():
-                    name = user.first_name
+            for user_id in batch_ids:
+                try:
+                    user = users_map.get(user_id)
+                    if not user:
+                         # If user is not in the returned list, it might be invalid/deleted
+                         raise Exception("User not found in batch result")
+
+                    await _process_user_premium(user, user_id, removed_users, not_removed_users)
+                except Exception as e:
+                    logger.error(f"Error processing user {user_id}: {e}")
                     await plans_db.remove_premium(user_id)
-                    await app.send_message(user_id, text=f"Hello {name}, your premium subscription has expired.")
-                    print(f"{name}, your premium subscription has expired.")
-                    removed_users.append(f"{name} ({user_id})")
-                else:
-                    name = user.first_name
-                    current_time = datetime.datetime.now()
-                    time_left = expiry_date - current_time
+                    removed_users.append(f"Unknown ({user_id})")
 
-                    days = time_left.days
-                    hours, remainder = divmod(time_left.seconds, 3600)
-                    minutes, seconds = divmod(remainder, 60)
-
-                    if days > 0:
-                        remaining_time = f"{days} days, {hours} hours, {minutes} minutes, {seconds} seconds"
-                    elif hours > 0:
-                        remaining_time = f"{hours} hours, {minutes} minutes, {seconds} seconds"
-                    elif minutes > 0:
-                        remaining_time = f"{minutes} minutes, {seconds} seconds"
-                    else:
-                        remaining_time = f"{seconds} seconds"
-
-                    print(f"{name} : Remaining Time : {remaining_time}")
-                    not_removed_users.append(f"{name} ({user_id})")
-        except:
-            await plans_db.remove_premium(user_id)
-            print(f"Unknown users captured : {user_id} removed")
-            removed_users.append(f"Unknown ({user_id})")
+        except Exception as e:
+            logger.warning(f"Batch processing failed for ids {batch_ids[0]}...{batch_ids[-1]}: {e}. Falling back to individual processing.")
+            for user_id in batch_ids:
+                try:
+                    user = await app.get_users(user_id)
+                    await _process_user_premium(user, user_id, removed_users, not_removed_users)
+                except Exception:
+                    await plans_db.remove_premium(user_id)
+                    logger.warning(f"Unknown users captured : {user_id} removed")
+                    removed_users.append(f"Unknown ({user_id})")
 
     return removed_users, not_removed_users
 
