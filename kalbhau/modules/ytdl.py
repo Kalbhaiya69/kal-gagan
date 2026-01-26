@@ -186,12 +186,15 @@ async def handler(event):
  
  
 async def fetch_video_info(url, ydl_opts, progress_message, check_duration_and_size):
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info_dict = ydl.extract_info(url, download=False)
+    def _extract():
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            return ydl.extract_info(url, download=False)
+
+    info_dict = await asyncio.to_thread(_extract)
  
-        if check_duration_and_size:
+    if check_duration_and_size:
              
-            duration = info_dict.get('duration', 0)
+        duration = info_dict.get('duration', 0)
             if duration and duration > 3 * 3600:   
                 await progress_message.edit("**❌ __Video is longer than 3 hours. Download aborted...__**")
                 return None
