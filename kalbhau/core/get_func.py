@@ -80,7 +80,7 @@ async def format_caption_to_html(caption: str) -> str:
 async def upload_media(sender, target_chat_id, file, caption, edit, topic_id):
     try:
         upload_method = await fetch_upload_method(sender)  # Fetch the upload method (Pyrogram or Telethon)
-        metadata = video_metadata(file)
+        metadata = await video_metadata(file)
         width, height, duration = metadata['width'], metadata['height'], metadata['duration']
         try:
             thumb_path = await screenshot(file, duration, sender)
@@ -853,7 +853,7 @@ async def handle_large_file(file, sender, edit, caption):
     
     target_chat_id = user_chat_ids.get(sender, sender)
     file_extension = str(file).split('.')[-1].lower()
-    metadata = video_metadata(file)
+    metadata = await video_metadata(file)
     duration = metadata['duration']
     width = metadata['width']
     height = metadata['height']
