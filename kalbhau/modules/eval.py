@@ -12,7 +12,7 @@
 # License: MIT License
 # ---------------------------------------------------
 
-import os, re, subprocess, sys, traceback
+import asyncio, os, re, subprocess, sys, traceback
 from inspect import getfullargspec
 from io import StringIO
 from time import time
@@ -169,25 +169,28 @@ async def shellrunner(_, message):
         for x in code:
             shell = re.split(""" (?=(?:[^'"]|'[^']*'|"[^"]*")*$)""", x)
             try:
-                process = subprocess.Popen(
-                    shell,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
+                process = await asyncio.create_subprocess_exec(
+                    shell[0],
+                    *shell[1:],
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
                 )
             except Exception as err:
                 await edit_or_reply(message, text=f"<b>ERROR :</b>\n<pre>{err}</pre>")
             output += f"<b>{code}</b>\n"
-            output += process.stdout.read()[:-1].decode("utf-8")
+            stdout, _ = await process.communicate()
+            output += stdout[:-1].decode("utf-8")
             output += "\n"
     else:
         shell = re.split(""" (?=(?:[^'"]|'[^']*'|"[^"]*")*$)""", text)
         for a in range(len(shell)):
             shell[a] = shell[a].replace('"', "")
         try:
-            process = subprocess.Popen(
-                shell,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+            process = await asyncio.create_subprocess_exec(
+                shell[0],
+                *shell[1:],
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
             )
         except Exception as err:
             print(err)
@@ -200,7 +203,8 @@ async def shellrunner(_, message):
             return await edit_or_reply(
                 message, text=f"<b>ERROR :</b>\n<pre>{''.join(errors)}</pre>"
             )
-        output = process.stdout.read()[:-1].decode("utf-8")
+        stdout, _ = await process.communicate()
+        output = stdout[:-1].decode("utf-8")
     if str(output) == "\n":
         output = None
     if output:
